@@ -1,0 +1,1942 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <title>HS – Albero dinamico Wikidata</title>
+  <style>
+    :root {
+      --bg-dark: #020617;
+      --bg-panel: #0f172a;
+      --bg-soft: #111827;
+      --fg: #e5e7eb;
+      --accent: #38bdf8;
+      --accent-soft: rgba(56,189,248,0.15);
+      --border: #1f2937;
+      --muted: #9ca3af;
+      --danger: #f97373;
+      --font: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+      --font-serif: "Georgia", "Times New Roman", serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: var(--font);
+      background: radial-gradient(circle at top, #1f2937 0, #020617 55%);
+      color: var(--fg);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(to right, rgba(15,23,42,0.95), rgba(15,23,42,0.7));
+      backdrop-filter: blur(12px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    header h1 {
+      font-size: 1.1rem;
+      margin: 0;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    header h1 span { color: var(--accent); }
+
+    header .meta {
+      font-size: 0.8rem;
+      color: var(--muted);
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    header .pill {
+      padding: 0.15rem 0.6rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(15,23,42,0.8);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    header .pill-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow: 0 0 0 4px rgba(34,197,94,0.25);
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+    }
+
+    #sidebar {
+      width: 280px;
+      border-right: 1px solid var(--border);
+      background: radial-gradient(circle at top left, #020617 0, #020617 40%, #020617 100%);
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    #sidebar h2 {
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin: 0 0 0.5rem;
+    }
+
+    .panel {
+      border-radius: 0.75rem;
+      border: 1px solid var(--border);
+      background: rgba(15,23,42,0.9);
+      padding: 0.75rem 0.9rem;
+      box-shadow: 0 18px 45px rgba(0,0,0,0.45);
+    }
+
+    .panel small {
+      font-size: 0.75rem;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin-top: 0.4rem;
+    }
+
+    .badge {
+      font-size: 0.7rem;
+      padding: 0.15rem 0.45rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      background: rgba(15,23,42,0.9);
+    }
+
+    .badge.accent {
+      border-color: rgba(56,189,248,0.5);
+      color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .search-box {
+      margin-top: 0.5rem;
+      position: relative;
+    }
+
+    .search-box input {
+      width: 100%;
+      padding: 0.45rem 0.7rem 0.45rem 1.8rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: #020617;
+      color: var(--fg);
+      font-size: 0.8rem;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    }
+
+    .search-box input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px rgba(56,189,248,0.4);
+      background: #020617;
+    }
+
+    .search-box svg {
+      position: absolute;
+      left: 0.55rem;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 13px;
+      height: 13px;
+      stroke: var(--muted);
+    }
+
+    #content {
+      flex: 1;
+      padding: 1rem 1.5rem 1.5rem;
+      overflow: auto;
+      position: relative;
+    }
+
+    #tree-container {
+      border-radius: 1rem;
+      border: 1px solid var(--border);
+      background: radial-gradient(circle at top left, rgba(15,23,42,0.95) 0, rgba(15,23,42,0.98) 40%, #020617 100%);
+      padding: 1rem;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.6);
+      min-height: 100%;
+      position: relative;
+    }
+
+    #status {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    #status span.dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--accent);
+      box-shadow: 0 0 0 4px rgba(56,189,248,0.25);
+    }
+
+    #status.error span.dot {
+      background: var(--danger);
+      box-shadow: 0 0 0 4px rgba(248,113,113,0.25);
+    }
+
+    #view-tabs {
+      display: flex;
+      gap: 0.4rem;
+      margin-bottom: 0.5rem;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+
+    .tab-group {
+      display: inline-flex;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(15,23,42,0.9);
+      padding: 0.15rem;
+    }
+
+    .tab {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.7rem;
+      border-radius: 999px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: background 0.12s ease, color 0.12s ease;
+    }
+
+    .tab.active {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .export-group {
+      display: inline-flex;
+      gap: 0.3rem;
+      flex-wrap: wrap;
+    }
+
+    #tree-list, #tree-diagram {
+      margin-top: 0.5rem;
+    }
+
+    #tree-diagram {
+      border-radius: 0.75rem;
+      border: 1px solid var(--border);
+      background: radial-gradient(circle at top left, #020617 0, #020617 40%, #020617 100%);
+      padding: 0.5rem;
+      overflow: auto;
+      max-height: calc(100vh - 220px);
+      cursor: grab;
+    }
+
+    #tree-diagram:active {
+      cursor: grabbing;
+    }
+
+    #tree-diagram svg {
+      background: transparent;
+      font-family: var(--font);
+    }
+
+    #tree {
+      font-size: 0.8rem;
+      line-height: 1.4;
+      margin-top: 0.5rem;
+    }
+
+    .node {
+      position: relative;
+      padding-left: 1.1rem;
+      margin: 0.15rem 0;
+    }
+
+    .node::before {
+      content: "";
+      position: absolute;
+      left: 0.35rem;
+      top: 0.7rem;
+      width: 0.7rem;
+      height: 1px;
+      background: rgba(55,65,81,0.8);
+    }
+
+    .node-root::before { display: none; }
+
+    .node-header {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.15rem 0.4rem;
+      border-radius: 999px;
+      cursor: default;
+      transition: background 0.12s ease, transform 0.08s ease, opacity 0.12s ease;
+    }
+
+    .node-header:hover {
+      background: rgba(31,41,55,0.9);
+      transform: translateY(-0.5px);
+    }
+
+    .node-group .node-header {
+      background: rgba(15,23,42,0.95);
+      border: 1px solid rgba(56,189,248,0.4);
+    }
+
+    .toggle {
+      width: 14px;
+      height: 14px;
+      border-radius: 4px;
+      border: 1px solid rgba(75,85,99,0.9);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      color: var(--muted);
+      background: rgba(15,23,42,0.9);
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background 0.12s ease, border-color 0.12s ease, transform 0.08s ease;
+    }
+
+    .toggle:hover {
+      background: rgba(31,41,55,0.95);
+      border-color: rgba(148,163,184,0.9);
+      transform: translateY(-0.5px);
+    }
+
+    .toggle.leaf {
+      border-style: dotted;
+      opacity: 0.6;
+      cursor: default;
+    }
+
+    .label-main {
+      color: var(--fg);
+      font-weight: 500;
+    }
+
+    .label-hs {
+      font-size: 0.7rem;
+      color: var(--accent);
+      background: var(--accent-soft);
+      border-radius: 999px;
+      padding: 0.05rem 0.35rem;
+      border: 1px solid rgba(56,189,248,0.5);
+    }
+
+    .label-meta {
+      font-size: 0.7rem;
+      color: var(--muted);
+    }
+
+    .label-meta a {
+      color: var(--muted);
+      text-decoration: none;
+    }
+
+    .label-meta a:hover {
+      color: var(--accent);
+      text-decoration: underline;
+    }
+
+    .children {
+      margin-left: 0.9rem;
+      border-left: 1px dashed rgba(55,65,81,0.7);
+      padding-left: 0.6rem;
+      margin-top: 0.15rem;
+    }
+
+    .collapsed > .children { display: none; }
+
+    .highlight {
+      background: rgba(56,189,248,0.18);
+      box-shadow: 0 0 0 1px rgba(56,189,248,0.4);
+      border-radius: 999px;
+    }
+
+    .dimmed {
+      opacity: 0.18;
+    }
+
+    .pill-button {
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(15,23,42,0.9);
+      color: var(--muted);
+      font-size: 0.75rem;
+      padding: 0.25rem 0.6rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease, transform 0.08s ease;
+    }
+
+    .pill-button:hover {
+      background: rgba(31,41,55,0.95);
+      border-color: rgba(148,163,184,0.9);
+      color: var(--fg);
+      transform: translateY(-0.5px);
+    }
+
+    .pill-button svg {
+      width: 11px;
+      height: 11px;
+      stroke-width: 1.7;
+    }
+
+    @media (max-width: 900px) {
+      #sidebar { display: none; }
+    }
+
+    /* Popup export */
+
+    #export-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15,23,42,0.75);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+    }
+
+    #export-modal {
+  background: rgba(255, 255, 255, 0.08); /* vetro satinato */
+  backdrop-filter: blur(14px);
+  border-radius: 1rem;
+  border: 1px solid rgba(255,255,255,0.25);
+  padding: 1rem 1.25rem 1.1rem;
+  width: 360px;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.55);
+}
+
+    #export-modal h3 {
+      margin: 0 0 0.5rem;
+      font-size: 0.95rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .export-section-title {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin: 0.4rem 0 0.2rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .export-radio-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      margin-bottom: 0.4rem;
+    }
+
+    .export-radio {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      padding: 0.25rem 0.4rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      transition: background 0.12s ease, border-color 0.12s ease;
+      border: 1px solid transparent;
+    }
+
+    .export-radio:hover {
+      background: rgba(15,23,42,0.9);
+      border-color: var(--border);
+    }
+
+    .export-radio input {
+      margin-right: 0.35rem;
+    }
+
+    .export-radio-main {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.8rem;
+    }
+
+    .export-preview {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .preview-swatch-bg {
+      width: 16px;
+      height: 16px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: #020617;
+    }
+
+    .preview-swatch-bg.light {
+      background: #ffffff;
+    }
+
+    .preview-swatch-bg.transparent {
+      background-image: linear-gradient(45deg, #e5e7eb 25%, transparent 25%, transparent 50%, #e5e7eb 50%, #e5e7eb 75%, transparent 75%, transparent);
+      background-size: 6px 6px;
+      background-color: #9ca3af;
+    }
+
+    .preview-swatch-text {
+  font-family: var(--font-serif);
+  font-size: 0.8rem;
+  padding: 0 0.25rem;
+  border-radius: 4px;
+  text-shadow: 0 0 2px rgba(0,0,0,0.6); /* migliora leggibilità */
+}
+
+    .preview-node {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.15rem 0.35rem;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.6);
+      background: rgba(15,23,42,0.9);
+    }
+
+    .preview-node-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(15,23,42,0.95);
+      border: 1px solid rgba(148,163,184,0.9);
+    }
+
+    .preview-node-label {
+      font-size: 0.7rem;
+    }
+
+    .preview-node-qid {
+      font-size: 0.7rem;
+      color: var(--muted);
+    }
+
+    .export-modal-footer {
+      margin-top: 0.6rem;
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.4rem;
+    }
+
+    .btn-ghost {
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.75rem;
+      padding: 0.25rem 0.6rem;
+      cursor: pointer;
+      transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+    }
+
+    .btn-ghost:hover {
+      background: rgba(15,23,42,0.9);
+      border-color: rgba(148,163,184,0.9);
+      color: var(--fg);
+    }
+
+    .btn-primary {
+      border-radius: 999px;
+      border: 1px solid rgba(56,189,248,0.7);
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 0.75rem;
+      padding: 0.25rem 0.8rem;
+      cursor: pointer;
+      transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+    }
+
+    .btn-primary:hover {
+      background: rgba(56,189,248,0.2);
+      border-color: rgba(56,189,248,1);
+      color: #e0f2fe;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1><span>HS - RIMAnt</span> · Dynamic Tree from Wikidata</h1>
+    <div class="meta">
+      <div class="pill">
+        <span class="pill-dot"></span>
+        <span>Live SPARQL · Wikidata</span>
+      </div>
+      <span>Classi HS 1–4 · termini + sottotermini</span>
+    </div>
+  </header>
+
+  <main>
+    <aside id="sidebar">
+      <div class="panel">
+        <h2>Query</h2>
+        <small>
+          La struttura ad albero è generata in tempo reale dalla query SPARQL (termini, sottotermini, livelli 1–4, codici HS associati),
+          raggruppata per classe HS principale (1–4).
+        </small>
+        <div class="badge-row">
+          <span class="badge accent">wd:Q1969448 (term)</span>
+          <span class="badge">wd:Q1254773 (HS class)</span>
+          <span class="badge">wd:Q136724142 (vocabulary)</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Filtra</h2>
+        <small>Puoi cercare per etichetta, codice HS o QID. I nodi corrispondenti vengono evidenziati, gli altri opacizzati.</small>
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" fill="none">
+            <circle cx="11" cy="11" r="6" stroke="currentColor" stroke-width="1.5"></circle>
+            <line x1="15.5" y1="15.5" x2="20" y2="20" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></line>
+          </svg>
+          <input id="search" type="text" placeholder="Cerca label, HS o Q…" />
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Azioni</h2>
+        <button class="pill-button" id="expand-all">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-linecap="round"></path>
+          </svg>
+          <span>Espandi tutto</span>
+        </button>
+        <button class="pill-button" id="collapse-all" style="margin-left:0.4rem;">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M5 12h14" stroke="currentColor" stroke-linecap="round"></path>
+          </svg>
+          <span>Collassa tutto</span>
+        </button>
+      </div>
+    </aside>
+
+    <section id="content">
+      <div id="tree-container">
+        <div id="status">
+          <span class="dot"></span>
+          <span id="status-text">Esecuzione query SPARQL su Wikidata…</span>
+        </div>
+
+        <div id="view-tabs">
+          <div class="tab-group">
+            <button class="tab active" data-view="list">Lista ad albero</button>
+            <button class="tab" data-view="diagram">Diagramma gerarchico</button>
+          </div>
+          <div class="export-group">
+            <button class="pill-button" id="export-csv">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M7 10v9h10v-9M12 4v9M9 7l3-3 3 3" stroke="currentColor" stroke-linecap="round"></path>
+              </svg>
+              <span>CSV</span>
+            </button>
+            <button class="pill-button" id="export-svg">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="4" y="4" width="16" height="16" rx="2" stroke="currentColor"></rect>
+                <path d="M8 16l3-8 3 8" stroke="currentColor" stroke-linecap="round"></path>
+              </svg>
+              <span>SVG</span>
+            </button>
+            <button class="pill-button" id="export-png">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="4" y="4" width="16" height="16" rx="2" stroke="currentColor"></rect>
+                <path d="M8 15l3-3 2 2 3-4" stroke="currentColor" stroke-linecap="round"></path>
+              </svg>
+              <span>PNG</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="tree-list">
+          <div id="tree"></div>
+        </div>
+
+        <div id="tree-diagram" style="display:none;">
+          <svg id="diagram-svg" width="1600" height="900"></svg>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Popup export -->
+  <div id="export-modal-backdrop">
+    <div id="export-modal">
+      <h3>Esporta visualizzazione</h3>
+
+      <div class="export-section-title">Modalità</div>
+      <div class="export-radio-group" id="mode-group">
+        <label class="export-radio">
+          <div class="export-radio-main">
+            <input type="radio" name="export-mode" value="standard" checked />
+            <span>Standard</span>
+          </div>
+          <div class="export-preview">
+            <span class="preview-node">
+              <span class="preview-node-dot"></span>
+              <span class="preview-node-label">Label</span>
+              <span class="preview-node-qid">· Q123456</span>
+            </span>
+          </div>
+        </label>
+        <label class="export-radio">
+          <div class="export-radio-main">
+            <input type="radio" name="export-mode" value="embedding" />
+            <span>Embedding</span>
+          </div>
+          <div class="export-preview">
+            <span class="preview-node">
+              <span class="preview-node-dot"></span>
+              <span class="preview-node-label">Label</span>
+              <span class="preview-node-qid">· Q123456</span>
+            </span>
+          </div>
+        </label>
+      </div>
+
+      <div class="export-section-title" id="bg-title-standard">Sfondo</div>
+      <div class="export-radio-group" id="bg-group-standard">
+        <label class="export-radio">
+          <div class="export-radio-main">
+            <input type="radio" name="export-bg-standard" value="dark" checked />
+            <span>Scuro</span>
+          </div>
+          <div class="export-preview">
+            <span class="preview-swatch-bg"></span>
+            <span class="preview-swatch-text" style="color:#ffffff;">Aa</span>
+          </div>
+        </label>
+        <label class="export-radio">
+          <div class="export-radio-main">
+            <input type="radio" name="export-bg-standard" value="light" />
+            <span>Chiaro</span>
+          </div>
+          <div class="export-preview">
+            <span class="preview-swatch-bg light"></span>
+            <span class="preview-swatch-text" style="color:#000000;">Aa</span>
+          </div>
+        </label>
+        <label class="export-radio">
+          <div class="export-radio-main">
+            <input type="radio" name="export-bg-standard" value="transparent" />
+            <span>Trasparente</span>
+          </div>
+          <div class="export-preview">
+            <span class="preview-swatch-bg transparent"></span>
+            <span class="preview-swatch-text" style="color:#000000;">Aa</span>
+          </div>
+        </label>
+      </div>
+
+      <div class="export-section-title" id="bg-title-embed" style="display:none;">Sfondo embedding</div>
+      <div class="export-radio-group" id="bg-group-embed" style="display:none;">
+        <label class="export-radio">
+          <div class="export-radio-main">
+            <input type="radio" name="export-bg-embed" value="white" checked />
+            <span>Bianco (default)</span>
+          </div>
+          <div class="export-preview">
+            <span class="preview-swatch-bg light"></span>
+            <span class="preview-swatch-text" style="color:#000000;">Aa</span>
+          </div>
+        </label>
+        <label class="export-radio">
+          <div class="export-radio-main">
+            <input type="radio" name="export-bg-embed" value="black" />
+            <span>Nero</span>
+          </div>
+          <div class="export-preview">
+            <span class="preview-swatch-bg"></span>
+            <span class="preview-swatch-text" style="color:#ffffff;">Aa</span>
+          </div>
+        </label>
+        <label class="export-radio">
+          <div class="export-radio-main">
+            <input type="radio" name="export-bg-embed" value="transparent" />
+            <span>Trasparente</span>
+          </div>
+          <div class="export-preview">
+            <span class="preview-swatch-bg transparent"></span>
+            <span class="preview-swatch-text" style="color:#000000;">Aa</span>
+          </div>
+        </label>
+      </div>
+
+      <div class="export-modal-footer">
+        <button class="btn-ghost" id="export-cancel">Annulla</button>
+        <button class="btn-primary" id="export-confirm">Conferma esportazione</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const sparqlQuery = `
+SELECT DISTINCT
+  ?classsm ?classsmLabel ?classHssm 
+  ?term ?termLabel ?classHs 
+  ?subterm ?subtermLabel ?rifHs
+  ?subterm1 ?subterm1Label ?rifHs1
+  ?subterm2 ?subterm2Label ?rifHs2
+  ?subterm3 ?subterm3Label ?rifHs3
+WHERE {
+
+  ## CLASSI PRINCIPALI 
+  VALUES ?classHssm {"1" "2" "3" "4"}
+  ?classsm wdt:P31 wd:Q1254773 ;
+           wdt:P1762 ?classHssm .
+
+  ## TERM
+  ?term wdt:P31 wd:Q1969448 ;
+        wdt:P361 wd:Q136724142 ;
+        wdt:P1269 ?class ;
+        wdt:P1269 ?classsm ;
+        wdt:P1269 ?class1 .
+
+  ?class1 wdt:P279 ?subclasshs ;
+          wdt:P1762 ?hs .
+  ?subclasshs wdt:P31 wd:Q1254773 .
+
+  ## TUTTI GLI HS DELLE CLASSI COLLEGATE VIA P1269 (SENZA SOTTOCLASSI)
+  {
+    SELECT ?term (GROUP_CONCAT(DISTINCT ?hsAll; separator=", ") AS ?classHs)
+    WHERE {
+      ?term wdt:P1269 ?anyClass .
+      ?anyClass wdt:P31 wd:Q1254773 ;
+                wdt:P1762 ?hsAll .
+      FILTER(?hsAll NOT IN ("1","2","3","4"))
+    }
+    GROUP BY ?term
+  }
+
+  ## LIVELLO 1
+  OPTIONAL {
+    ?subterm wdt:P279 ?term ;
+             wdt:P31 wd:Q1969448 ;
+             wdt:P361 wd:Q136724142 ;
+             wdt:P1269 ?aspOfClass .
+    ?aspOfClass wdt:P31 wd:Q1254773 ;
+                wdt:P1762 ?rifHs .
+  }
+
+  ## LIVELLO 2
+  OPTIONAL {
+    ?subterm wdt:P279 ?term ;
+             wdt:P31 wd:Q1969448 ;
+             wdt:P361 wd:Q136724142 ;
+             wdt:P1269 ?aspOfClass .
+    ?aspOfClass wdt:P31 wd:Q1254773 ;
+                wdt:P1762 ?rifHs .
+
+    ?subterm1 wdt:P279 ?subterm ;
+              wdt:P31 wd:Q1969448 ;
+              wdt:P361 wd:Q136724142 ;
+              wdt:P1269 ?aspOfClass1 .
+    ?aspOfClass1 wdt:P31 wd:Q1254773 ;
+                 wdt:P1762 ?rifHs1 .
+  }
+
+  ## LIVELLO 3
+  OPTIONAL {
+    ?subterm wdt:P279 ?term ;
+             wdt:P31 wd:Q1969448 ;
+             wdt:P361 wd:Q136724142 ;
+             wdt:P1269 ?aspOfClass .
+    ?aspOfClass wdt:P31 wd:Q1254773 ;
+                wdt:P1762 ?rifHs .
+
+    ?subterm1 wdt:P279 ?subterm ;
+              wdt:P31 wd:Q1969448 ;
+              wdt:P361 wd:Q136724142 ;
+              wdt:P1269 ?aspOfClass1 .
+    ?aspOfClass1 wdt:P31 wd:Q1254773 ;
+                 wdt:P1762 ?rifHs1 .
+
+    ?subterm2 wdt:P279 ?subterm1 ;
+              wdt:P31 wd:Q1969448 ;
+              wdt:P361 wd:Q136724142 ;
+              wdt:P1269 ?aspOfClass2 .
+    ?aspOfClass2 wdt:P31 wd:Q1254773 ;
+                 wdt:P1762 ?rifHs2 .
+  }
+
+  ## LIVELLO 4
+  OPTIONAL {
+    ?subterm wdt:P279 ?term ;
+             wdt:P31 wd:Q1969448 ;
+             wdt:P361 wd:Q136724142 ;
+             wdt:P1269 ?aspOfClass .
+    ?aspOfClass wdt:P31 wd:Q1254773 ;
+                wdt:P1762 ?rifHs .
+
+    ?subterm1 wdt:P279 ?subterm ;
+              wdt:P31 wd:Q1969448 ;
+              wdt:P361 wd:Q136724142 ;
+              wdt:P1269 ?aspOfClass1 .
+    ?aspOfClass1 wdt:P31 wd:Q1254773 ;
+                 wdt:P1762 ?rifHs1 .
+
+    ?subterm2 wdt:P279 ?subterm1 ;
+              wdt:P31 wd:Q1969448 ;
+              wdt:P361 wd:Q136724142 ;
+              wdt:P1269 ?aspOfClass2 .
+    ?aspOfClass2 wdt:P31 wd:Q1254773 ;
+                 wdt:P1762 ?rifHs2 .
+
+    ?subterm3 wdt:P279 ?subterm2 ;
+              wdt:P31 wd:Q1969448 ;
+              wdt:P361 wd:Q136724142 ;
+              wdt:P1269 ?aspOfClass3 .
+    ?aspOfClass3 wdt:P31 wd:Q1254773 ;
+                 wdt:P1762 ?rifHs3 .
+  }
+
+  SERVICE wikibase:label {
+    bd:serviceParam wikibase:language "en,it,fr".
+  }
+}
+ORDER BY ?classHs ?hs ?class1 ?subclasshs ?rifHs ?rifHs1 ?rifHs2
+`;
+
+    const endpointUrl = "https://query.wikidata.org/sparql";
+
+    const statusEl = document.getElementById("status");
+    const statusTextEl = document.getElementById("status-text");
+    const treeEl = document.getElementById("tree");
+    const searchInput = document.getElementById("search");
+    const expandAllBtn = document.getElementById("expand-all");
+    const collapseAllBtn = document.getElementById("collapse-all");
+    const tabButtons = document.querySelectorAll(".tab");
+    const treeListEl = document.getElementById("tree-list");
+    const treeDiagramEl = document.getElementById("tree-diagram");
+    const diagramSvg = document.getElementById("diagram-svg");
+    const exportCsvBtn = document.getElementById("export-csv");
+    const exportSvgBtn = document.getElementById("export-svg");
+    const exportPngBtn = document.getElementById("export-png");
+
+    const exportModalBackdrop = document.getElementById("export-modal-backdrop");
+    const exportCancelBtn = document.getElementById("export-cancel");
+    const exportConfirmBtn = document.getElementById("export-confirm");
+    const modeGroup = document.getElementById("mode-group");
+    const bgTitleStandard = document.getElementById("bg-title-standard");
+    const bgGroupStandard = document.getElementById("bg-group-standard");
+    const bgTitleEmbed = document.getElementById("bg-title-embed");
+    const bgGroupEmbed = document.getElementById("bg-group-embed");
+
+    let globalTree = null;
+    let collapsedDiagramNodes = new Set();
+    let currentView = "list";
+    let currentSearch = "";
+    let pendingExportType = null; // "svg" | "png"
+
+    function setStatus(text, isError = false) {
+      statusTextEl.textContent = text;
+      if (isError) statusEl.classList.add("error");
+      else statusEl.classList.remove("error");
+    }
+
+    async function runQuery() {
+      setStatus("Esecuzione query SPARQL su Wikidata…");
+      try {
+        const url = endpointUrl + "?query=" + encodeURIComponent(sparqlQuery);
+        const res = await fetch(url, {
+          headers: { "Accept": "application/sparql-results+json" }
+        });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        setStatus("Query completata. Costruzione dell'albero…");
+        return data.results.bindings;
+      } catch (e) {
+        console.error(e);
+        setStatus("Errore nell'esecuzione della query: " + e.message, true);
+        return [];
+      }
+    }
+
+    function getValue(binding, key) {
+      return binding[key] ? binding[key].value : null;
+    }
+
+    function buildTree(rows) {
+      const allNodes = new Map();
+      const termToClass = new Map();
+      const groupsMap = new Map();
+
+      function ensureNode(id, label) {
+        if (!id) return null;
+        if (!allNodes.has(id)) {
+          allNodes.set(id, {
+            id,
+            label: label || id,
+            hsCodes: new Set(),
+            children: new Map(),
+            parent: null
+          });
+        } else if (label && !allNodes.get(id).label) {
+          allNodes.get(id).label = label;
+        }
+        return allNodes.get(id);
+      }
+
+      function addHs(node, hs) {
+        if (node && hs) {
+          hs.split(",").map(s => s.trim()).filter(Boolean).forEach(h => node.hsCodes.add(h));
+        }
+      }
+
+      for (const row of rows) {
+        const classHssm = getValue(row, "classHssm");
+        const classsmLabel = getValue(row, "classsmLabel");
+        const termId = getValue(row, "term");
+        const termLabel = getValue(row, "termLabel");
+        const classHs = getValue(row, "classHs");
+
+        const subtermId = getValue(row, "subterm");
+        const subtermLabel = getValue(row, "subtermLabel");
+        const rifHs = getValue(row, "rifHs");
+
+        const subterm1Id = getValue(row, "subterm1");
+        const subterm1Label = getValue(row, "subterm1Label");
+        const rifHs1 = getValue(row, "rifHs1");
+
+        const subterm2Id = getValue(row, "subterm2");
+        const subterm2Label = getValue(row, "subterm2Label");
+        const rifHs2 = getValue(row, "rifHs2");
+
+        const subterm3Id = getValue(row, "subterm3");
+        const subterm3Label = getValue(row, "subterm3Label");
+        const rifHs3 = getValue(row, "rifHs3");
+
+        if (termId && classHssm) {
+          if (!termToClass.has(termId)) {
+            termToClass.set(termId, { classHssm, classsmLabel });
+          }
+        }
+
+        const termNode = ensureNode(termId, termLabel);
+        addHs(termNode, classHs);
+
+        let subNode = null;
+        if (subtermId) {
+          subNode = ensureNode(subtermId, subtermLabel);
+          if (!termNode.children.has(subtermId)) {
+            termNode.children.set(subtermId, subNode);
+            subNode.parent = termNode;
+          }
+          addHs(subNode, rifHs);
+        }
+
+        let sub1Node = null;
+        if (subterm1Id && subNode) {
+          sub1Node = ensureNode(subterm1Id, subterm1Label);
+          if (!subNode.children.has(subterm1Id)) {
+            subNode.children.set(subterm1Id, sub1Node);
+            sub1Node.parent = subNode;
+          }
+          addHs(sub1Node, rifHs1);
+        }
+
+        let sub2Node = null;
+        if (subterm2Id && sub1Node) {
+          sub2Node = ensureNode(subterm2Id, subterm2Label);
+          if (!sub1Node.children.has(subterm2Id)) {
+            sub1Node.children.set(subterm2Id, sub2Node);
+            sub2Node.parent = sub1Node;
+          }
+          addHs(sub2Node, rifHs2);
+        }
+
+        if (subterm3Id && sub2Node) {
+          const sub3Node = ensureNode(subterm3Id, subterm3Label);
+          if (!sub2Node.children.has(subterm3Id)) {
+            sub2Node.children.set(subterm3Id, sub3Node);
+            sub3Node.parent = sub2Node;
+          }
+          addHs(sub3Node, rifHs3);
+        }
+      }
+
+      for (const [termId, info] of termToClass.entries()) {
+        const { classHssm, classsmLabel } = info;
+        if (!groupsMap.has(classHssm)) {
+          const label = classHssm + (classsmLabel ? " – " + classsmLabel : "");
+          groupsMap.set(classHssm, {
+            id: "HS-" + classHssm,
+            label,
+            hsClass: classHssm,
+            children: new Map(),
+            parent: null,
+            isGroup: true
+          });
+        }
+        const group = groupsMap.get(classHssm);
+        const termNode = allNodes.get(termId);
+        if (termNode && !group.children.has(termId)) {
+          group.children.set(termId, termNode);
+          termNode.parent = group;
+        }
+      }
+
+      const roots = Array.from(groupsMap.values()).sort((a, b) => a.hsClass.localeCompare(b.hsClass));
+
+      return { roots, allNodes, groups: groupsMap };
+    }
+
+    function renderTreeList(tree) {
+      treeEl.innerHTML = "";
+      const container = document.createElement("div");
+
+      function renderNode(node, isRoot = false) {
+        const wrapper = document.createElement("div");
+        wrapper.className = "node" + (isRoot ? " node-root" : "");
+        if (node.isGroup) wrapper.classList.add("node-group");
+        wrapper.dataset.id = node.id;
+
+        const header = document.createElement("div");
+        header.className = "node-header";
+
+        const hasChildren = node.children && node.children.size > 0;
+        const toggle = document.createElement("div");
+        toggle.className = "toggle" + (hasChildren ? "" : " leaf");
+        toggle.textContent = hasChildren ? "▾" : "·";
+
+        if (hasChildren) {
+          wrapper.classList.add("expanded");
+          toggle.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const collapsed = wrapper.classList.toggle("collapsed");
+            toggle.textContent = collapsed ? "▸" : "▾";
+          });
+        }
+
+        const labelMain = document.createElement("span");
+        labelMain.className = "label-main";
+        labelMain.textContent = node.label || node.id;
+
+        const headerParts = [toggle, labelMain];
+
+        if (!node.isGroup) {
+          const hsSpan = document.createElement("span");
+          hsSpan.className = "label-hs";
+          const hsList = Array.from(node.hsCodes || []);
+          if (hsList.length > 0) {
+            hsSpan.textContent = "HS: " + hsList.join(", ");
+          } else {
+            hsSpan.textContent = "HS: –";
+            hsSpan.style.opacity = 0.5;
+          }
+          headerParts.push(hsSpan);
+
+          const metaSpan = document.createElement("span");
+          metaSpan.className = "label-meta";
+          const qid = node.id.split("/").pop();
+          const link = document.createElement("a");
+          link.href = "https://www.wikidata.org/entity/" + qid;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          link.textContent = "· " + qid;
+          metaSpan.appendChild(link);
+          headerParts.push(metaSpan);
+
+          wrapper.dataset.hs = hsList.join(" ").toLowerCase();
+          wrapper.dataset.qid = qid.toLowerCase();
+          wrapper.dataset.label = (node.label || "").toLowerCase();
+        }
+
+        headerParts.forEach(el => header.appendChild(el));
+        wrapper.appendChild(header);
+
+        if (hasChildren) {
+          const childrenDiv = document.createElement("div");
+          childrenDiv.className = "children";
+          for (const child of node.children.values()) {
+            childrenDiv.appendChild(renderNode(child, false));
+          }
+          wrapper.appendChild(childrenDiv);
+        }
+
+        return wrapper;
+      }
+
+      for (const root of tree.roots) {
+        container.appendChild(renderNode(root, true));
+      }
+
+      treeEl.appendChild(container);
+      setStatus("Albero generato. Classi HS principali: " + tree.roots.length);
+    }
+
+    function buildDiagramLayout(tree) {
+      const nodes = [];
+      const links = [];
+      let orderCounter = 0;
+
+      function matchesSearch(node) {
+        if (!currentSearch) return true;
+        const q = currentSearch.toLowerCase();
+        if (node.isGroup) {
+          return (node.label || "").toLowerCase().includes(q);
+        }
+        const label = (node.label || "").toLowerCase();
+        const qid = node.id.split("/").pop().toLowerCase();
+        const hs = Array.from(node.hsCodes || []).join(" ").toLowerCase();
+        return label.includes(q) || qid.includes(q) || hs.includes(q);
+      }
+
+      function traverse(node, depth) {
+        const isGroup = !!node.isGroup;
+        const qid = isGroup ? null : node.id.split("/").pop();
+        const hsList = isGroup ? [] : Array.from(node.hsCodes || []);
+
+        const n = {
+          id: node.id,
+          label: node.label || (qid || node.id),
+          qid,
+          hs: hsList,
+          depth,
+          children: [],
+          isGroup,
+          matches: matchesSearch(node)
+        };
+        const myOrder = orderCounter++;
+        n.order = myOrder;
+        nodes.push(n);
+
+        if (!collapsedDiagramNodes.has(node.id) && node.children && node.children.size > 0) {
+          for (const child of node.children.values()) {
+            const childNode = traverse(child, depth + 1);
+            links.push({ source: n.id, target: childNode.id });
+            n.children.push(childNode);
+          }
+        }
+        return n;
+      }
+
+      for (const root of tree.roots) {
+        traverse(root, 0);
+      }
+
+      const maxDepth = nodes.reduce((m, n) => Math.max(m, n.depth), 0);
+      const maxOrder = nodes.reduce((m, n) => Math.max(m, n.order), 0);
+
+      const baseWidth = 1600;
+      const baseHeight = 900;
+      const marginLeft = 140;
+      const marginRight = 80;
+      const marginTop = 60;
+      const marginBottom = 60;
+
+      const depthStep = Math.max(200, (baseWidth - marginLeft - marginRight) / Math.max(1, maxDepth || 1));
+
+      const orderStep = Math.max(42, (baseHeight - marginTop - marginBottom) / Math.max(1, maxOrder || 1));
+
+      const width = marginLeft + marginRight + depthStep * Math.max(1, maxDepth || 1);
+      const height = marginTop + marginBottom + orderStep * Math.max(1, maxOrder || 1);
+
+      nodes.forEach(n => {
+        n.x = marginLeft + n.depth * depthStep;
+        n.y = marginTop + n.order * orderStep;
+      });
+
+      return { nodes, links, width, height };
+    }
+
+    function renderDiagram(tree) {
+      const { nodes, links, width, height } = buildDiagramLayout(tree);
+
+      diagramSvg.setAttribute("width", width);
+      diagramSvg.setAttribute("height", height);
+      diagramSvg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+      while (diagramSvg.firstChild) diagramSvg.removeChild(diagramSvg.firstChild);
+
+      const ns = "http://www.w3.org/2000/svg";
+
+      function nodeById(id) {
+        return nodes.find(n => n.id === id);
+      }
+
+      for (const link of links) {
+        const source = nodeById(link.source);
+        const target = nodeById(link.target);
+        if (!source || !target) continue;
+
+        const path = document.createElementNS(ns, "path");
+        const x1 = source.x + 40;
+        const y1 = source.y;
+        const x2 = target.x - 40;
+        const y2 = target.y;
+        const mx = (x1 + x2) / 2;
+        const d = `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`;
+        path.setAttribute("d", d);
+        path.setAttribute("fill", "none");
+        const linkMatches = source.matches || target.matches || !currentSearch;
+        path.setAttribute("stroke", linkMatches ? "rgba(75,85,99,0.9)" : "rgba(55,65,81,0.25)");
+        path.setAttribute("stroke-width", linkMatches ? "1.2" : "0.8");
+        diagramSvg.appendChild(path);
+      }
+
+      for (const node of nodes) {
+        const group = document.createElementNS(ns, "g");
+        group.setAttribute("transform", `translate(${node.x},${node.y})`);
+
+        const opacity = currentSearch ? (node.matches ? 1 : 0.18) : 1;
+        group.setAttribute("opacity", opacity);
+
+        const circle = document.createElementNS(ns, "circle");
+        circle.setAttribute("r", node.isGroup ? "10" : "8");
+        circle.setAttribute("fill", node.isGroup ? "rgba(15,23,42,0.98)" : "rgba(15,23,42,0.95)");
+        circle.setAttribute("stroke", node.isGroup ? "rgba(56,189,248,0.9)" : "rgba(148,163,184,0.9)");
+        circle.setAttribute("stroke-width", "1.2");
+        circle.style.cursor = "pointer";
+        group.appendChild(circle);
+
+        const label = document.createElementNS(ns, "text");
+        label.setAttribute("x", node.isGroup ? 18 : 16);
+        label.setAttribute("y", -2);
+        label.setAttribute("fill", "#e5e7eb");
+        label.setAttribute("font-size", node.isGroup ? "11" : "10");
+        label.textContent = node.label;
+        group.appendChild(label);
+
+// QID sempre sotto la label
+if (!node.isGroup && node.qid) {
+  const qText = document.createElementNS(ns, "text");
+  qText.setAttribute("x", 16);   // leggermente a destra del nodo
+  qText.setAttribute("y", 12);   // sotto la label
+  qText.setAttribute("fill", "#9ca3af");
+  qText.setAttribute("font-size", "9");
+  qText.textContent = "· " + node.qid;
+  qText.style.cursor = "pointer";
+
+  // Hover blu + sottolineato
+  qText.addEventListener("mouseover", () => {
+    qText.setAttribute("fill", "#38bdf8");
+    qText.setAttribute("text-decoration", "underline");
+  });
+  qText.addEventListener("mouseout", () => {
+    qText.setAttribute("fill", "#9ca3af");
+    qText.removeAttribute("text-decoration");
+  });
+  qText.addEventListener("click", (e) => {
+    e.stopPropagation();
+    window.open("https://www.wikidata.org/entity/" + node.qid, "_blank", "noopener");
+  });
+
+  group.appendChild(qText);
+}
+
+// HS sempre sotto il QID
+if (!node.isGroup) {
+  const hsText = document.createElementNS(ns, "text");
+  hsText.setAttribute("x", 16);
+  hsText.setAttribute("y", 26); // sotto il QID
+  hsText.setAttribute("fill", "#38bdf8");
+  hsText.setAttribute("font-size", "9");
+  hsText.textContent = node.hs.length ? "HS: " + node.hs.join(", ") : "HS: –";
+  group.appendChild(hsText);
+}
+
+
+
+        group.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (collapsedDiagramNodes.has(node.id)) {
+            collapsedDiagramNodes.delete(node.id);
+          } else {
+            collapsedDiagramNodes.add(node.id);
+          }
+          renderDiagram(globalTree);
+        });
+
+        diagramSvg.appendChild(group);
+      }
+    }
+
+    function setupDiagramPanZoom() {
+      let isPanning = false;
+      let startX = 0;
+      let startY = 0;
+      let viewBox = { x: 0, y: 0, w: 1600, h: 900 };
+
+      function updateViewBox() {
+        diagramSvg.setAttribute("viewBox", `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
+      }
+
+      treeDiagramEl.addEventListener("mousedown", (e) => {
+        isPanning = true;
+        startX = e.clientX;
+        startY = e.clientY;
+      });
+
+      window.addEventListener("mousemove", (e) => {
+        if (!isPanning) return;
+        const dx = (startX - e.clientX) * (viewBox.w / diagramSvg.clientWidth);
+        const dy = (startY - e.clientY) * (viewBox.h / diagramSvg.clientHeight);
+        viewBox.x += dx;
+        viewBox.y += dy;
+        startX = e.clientX;
+        startY = e.clientY;
+        updateViewBox();
+      });
+
+      window.addEventListener("mouseup", () => {
+        isPanning = false;
+      });
+
+      treeDiagramEl.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        const scaleFactor = 1.1;
+        const rect = diagramSvg.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        const vx = viewBox.x + (mx / rect.width) * viewBox.w;
+        const vy = viewBox.y + (my / rect.height) * viewBox.h;
+
+        if (e.deltaY < 0) {
+          viewBox.w /= scaleFactor;
+          viewBox.h /= scaleFactor;
+        } else {
+          viewBox.w *= scaleFactor;
+          viewBox.h *= scaleFactor;
+        }
+
+        viewBox.x = vx - (mx / rect.width) * viewBox.w;
+        viewBox.y = vy - (my / rect.height) * viewBox.h;
+        updateViewBox();
+      });
+
+      const originalSet = diagramSvg.setAttribute.bind(diagramSvg);
+      diagramSvg.setAttribute = function(name, value) {
+        originalSet(name, value);
+        if (name === "viewBox") {
+          const parts = value.split(" ").map(Number);
+          if (parts.length === 4) {
+            viewBox = { x: parts[0], y: parts[1], w: parts[2], h: parts[3] };
+          }
+        }
+      };
+    }
+
+    function setupSearch() {
+      searchInput.addEventListener("input", () => {
+        currentSearch = searchInput.value.trim().toLowerCase();
+
+        const headers = treeEl.querySelectorAll(".node-header");
+        headers.forEach(h => {
+          h.classList.remove("highlight");
+          h.classList.remove("dimmed");
+        });
+
+        if (!currentSearch) {
+          if (globalTree && currentView === "diagram") renderDiagram(globalTree);
+          return;
+        }
+
+        const nodes = treeEl.querySelectorAll(".node");
+        nodes.forEach(node => {
+          const header = node.querySelector(".node-header");
+          if (!header) return;
+
+          const label = (node.dataset.label || "").toLowerCase();
+          const hs = (node.dataset.hs || "").toLowerCase();
+          const qid = (node.dataset.qid || "").toLowerCase();
+          const text = header.textContent.toLowerCase();
+
+          const match =
+            text.includes(currentSearch) ||
+            label.includes(currentSearch) ||
+            hs.includes(currentSearch) ||
+            qid.includes(currentSearch);
+
+          if (match) {
+            header.classList.add("highlight");
+            let parent = node.parentElement;
+            while (parent && parent.classList.contains("node")) {
+              parent.classList.remove("collapsed");
+              const toggle = parent.querySelector(".toggle");
+              if (toggle && !toggle.classList.contains("leaf")) {
+                toggle.textContent = "▾";
+              }
+              parent = parent.parentElement.closest(".node");
+            }
+          } else {
+            header.classList.add("dimmed");
+          }
+        });
+
+        if (globalTree && currentView === "diagram") {
+          renderDiagram(globalTree);
+        }
+      });
+    }
+
+    function setupExpandCollapse() {
+      expandAllBtn.addEventListener("click", () => {
+        const nodes = treeEl.querySelectorAll(".node");
+        nodes.forEach(node => {
+          node.classList.remove("collapsed");
+          const toggle = node.querySelector(".toggle");
+          if (toggle && !toggle.classList.contains("leaf")) {
+            toggle.textContent = "▾";
+          }
+        });
+        collapsedDiagramNodes.clear();
+        if (globalTree && currentView === "diagram") {
+          renderDiagram(globalTree);
+        }
+      });
+
+      collapseAllBtn.addEventListener("click", () => {
+        const nodes = treeEl.querySelectorAll(".node");
+        nodes.forEach(node => {
+          if (!node.classList.contains("node-group")) {
+            node.classList.add("collapsed");
+          }
+          const toggle = node.querySelector(".toggle");
+          if (toggle && !toggle.classList.contains("leaf")) {
+            if (node.classList.contains("node-group")) {
+              toggle.textContent = "▾";
+            } else {
+              toggle.textContent = "▸";
+            }
+          }
+        });
+
+        collapsedDiagramNodes.clear();
+        if (globalTree) {
+          for (const root of globalTree.roots) {
+            for (const term of root.children.values()) {
+              collapsedDiagramNodes.add(term.id);
+            }
+          }
+        }
+        if (globalTree && currentView === "diagram") {
+          renderDiagram(globalTree);
+        }
+      });
+    }
+
+    function setupTabs() {
+      tabButtons.forEach(btn => {
+        btn.addEventListener("click", () => {
+          tabButtons.forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+          const view = btn.dataset.view;
+          currentView = view;
+          if (view === "list") {
+            treeListEl.style.display = "";
+            treeDiagramEl.style.display = "none";
+          } else {
+            treeListEl.style.display = "none";
+            treeDiagramEl.style.display = "";
+            if (globalTree) renderDiagram(globalTree);
+          }
+        });
+      });
+    }
+
+    function exportCSV(tree) {
+      const rows = [];
+      rows.push(["id", "label", "qid", "hs_codes", "parent_id"].join(","));
+      for (const node of tree.allNodes.values()) {
+        const qid = node.id.split("/").pop();
+        const hs = Array.from(node.hsCodes).join("|");
+        const parentId = node.parent && !node.parent.isGroup ? node.parent.id : "";
+        const safe = (s) => '"' + String(s || "").replace(/"/g, '""') + '"';
+        rows.push([
+          safe(node.id),
+          safe(node.label),
+          safe(qid),
+          safe(hs),
+          safe(parentId)
+        ].join(","));
+      }
+      const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "hs_tree.csv";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function buildListSvg(tree, bgMode, forEmbedding) {
+      const ns = "http://www.w3.org/2000/svg";
+      const width = 1200;
+      const lineHeight = 20;
+      const marginLeft = 20;
+      const marginTop = 20;
+      let y = marginTop;
+
+      const svg = document.createElementNS(ns, "svg");
+      svg.setAttribute("width", width);
+      svg.setAttribute("height", 2000);
+      svg.setAttribute("viewBox", `0 0 ${width} 2000`);
+      svg.setAttribute("xmlns", ns);
+
+      let bgColor = "none";
+      let textColor = "#e5e7eb";
+      let hsColor = "#38bdf8";
+      let qColor = "#9ca3af";
+
+      if (forEmbedding) {
+        if (bgMode === "white") {
+          bgColor = "#ffffff";
+          textColor = "#000000";
+          hsColor = "#2563eb";
+          qColor = "#4b5563";
+        } else if (bgMode === "black") {
+          bgColor = "#000000";
+          textColor = "#ffffff";
+          hsColor = "#38bdf8";
+          qColor = "#9ca3af";
+        } else {
+          bgColor = "none";
+          textColor = "#000000";
+          hsColor = "#2563eb";
+          qColor = "#4b5563";
+        }
+      } else {
+        if (bgMode === "dark") {
+          bgColor = "#020617";
+          textColor = "#e5e7eb";
+          hsColor = "#38bdf8";
+          qColor = "#9ca3af";
+        } else if (bgMode === "light") {
+          bgColor = "#ffffff";
+          textColor = "#000000";
+          hsColor = "#2563eb";
+          qColor = "#4b5563";
+        } else {
+          bgColor = "none";
+          textColor = "#000000";
+          hsColor = "#2563eb";
+          qColor = "#4b5563";
+        }
+      }
+
+      if (bgColor !== "none") {
+        const rect = document.createElementNS(ns, "rect");
+        rect.setAttribute("x", 0);
+        rect.setAttribute("y", 0);
+        rect.setAttribute("width", width);
+        rect.setAttribute("height", 2000);
+        rect.setAttribute("fill", bgColor);
+        svg.appendChild(rect);
+      }
+
+      function drawNode(node, depth) {
+        const x = marginLeft + depth * 24;
+        const label = node.label || node.id;
+        const qid = node.isGroup ? "" : node.id.split("/").pop();
+        const hs = node.isGroup ? [] : Array.from(node.hsCodes || []);
+
+        const text = document.createElementNS(ns, "text");
+        text.setAttribute("x", x);
+        text.setAttribute("y", y);
+        text.setAttribute("fill", textColor);
+        text.setAttribute("font-size", "11");
+        text.textContent = label;
+        svg.appendChild(text);
+
+        let cursorX = x + 260;   // spazio fisso per la label
+
+        if (!node.isGroup) {
+          const qText = document.createElementNS(ns, "text");
+          qText.setAttribute("x", cursorX);
+          qText.setAttribute("y", y);
+          qText.setAttribute("fill", qColor);
+          qText.setAttribute("font-size", "10");
+          qText.textContent = "· " + qid;
+          svg.appendChild(qText);
+          cursorX += qText.getComputedTextLength() + 6;
+
+          const hsText = document.createElementNS(ns, "text");
+          hsText.setAttribute("x", cursorX);
+          hsText.setAttribute("y", y + 12);
+          hsText.setAttribute("fill", hsColor);
+          hsText.setAttribute("font-size", "10");
+          hsText.textContent = hs.length ? "HS: " + hs.join(", ") : "HS: –";
+          svg.appendChild(hsText);
+        }
+
+        y += lineHeight;
+
+        if (node.children && node.children.size > 0) {
+          for (const child of node.children.values()) {
+            drawNode(child, depth + 1);
+          }
+        }
+      }
+
+      for (const root of tree.roots) {
+        drawNode(root, 0);
+      }
+
+      svg.setAttribute("height", y + marginTop);
+      svg.setAttribute("viewBox", `0 0 ${width} ${y + marginTop}`);
+      return svg;
+    }
+
+    function openExportModal(type) {
+      pendingExportType = type;
+      exportModalBackdrop.style.display = "flex";
+    }
+
+    function closeExportModal() {
+      exportModalBackdrop.style.display = "none";
+      pendingExportType = null;
+    }
+
+    function getExportOptions() {
+      const mode = document.querySelector('input[name="export-mode"]:checked').value;
+      let bgMode = null;
+      if (mode === "standard") {
+        bgMode = document.querySelector('input[name="export-bg-standard"]:checked').value;
+      } else {
+        bgMode = document.querySelector('input[name="export-bg-embed"]:checked').value;
+      }
+      return { mode, bgMode };
+    }
+
+    function exportSVGWithOptions() {
+      if (!globalTree) return;
+      const { mode, bgMode } = getExportOptions();
+
+      let svgElement;
+      let forEmbedding = (mode === "embedding");
+
+      if (currentView === "diagram") {
+        svgElement = diagramSvg.cloneNode(true);
+        const ns = "http://www.w3.org/2000/svg";
+        if (!forEmbedding) {
+          let bgColor = "none";
+          if (bgMode === "dark") bgColor = "#020617";
+          else if (bgMode === "light") bgColor = "#ffffff";
+          else bgColor = "none";
+
+          if (bgColor !== "none") {
+            const vb = svgElement.viewBox.baseVal;
+            const rect = document.createElementNS(ns, "rect");
+            rect.setAttribute("x", vb.x);
+            rect.setAttribute("y", vb.y);
+            rect.setAttribute("width", vb.width);
+            rect.setAttribute("height", vb.height);
+            rect.setAttribute("fill", bgColor);
+            svgElement.insertBefore(rect, svgElement.firstChild);
+          }
+        } else {
+          let bgColor = "none";
+          if (bgMode === "white") bgColor = "#ffffff";
+          else if (bgMode === "black") bgColor = "#000000";
+          else bgColor = "none";
+
+          const ns2 = "http://www.w3.org/2000/svg";
+          if (bgColor !== "none") {
+            const vb = svgElement.viewBox.baseVal;
+            const rect = document.createElementNS(ns2, "rect");
+            rect.setAttribute("x", vb.x);
+            rect.setAttribute("y", vb.y);
+            rect.setAttribute("width", vb.width);
+            rect.setAttribute("height", vb.height);
+            rect.setAttribute("fill", bgColor);
+            svgElement.insertBefore(rect, svgElement.firstChild);
+          }
+        }
+      } else {
+        if (mode === "embedding") {
+          svgElement = buildListSvg(globalTree, bgMode, true);
+        } else {
+          svgElement = buildListSvg(globalTree, bgMode, false);
+        }
+      }
+
+      const serializer = new XMLSerializer();
+      const source = serializer.serializeToString(svgElement);
+      const blob = new Blob([source], { type: "image/svg+xml;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const suffix = currentView === "diagram" ? "diagram" : "list";
+      a.download = `hs_tree_${suffix}.svg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function exportPNGWithOptions() {
+      if (!globalTree) return;
+      const { mode, bgMode } = getExportOptions();
+
+      let svgElement;
+      let forEmbedding = (mode === "embedding");
+
+      if (currentView === "diagram") {
+        svgElement = diagramSvg.cloneNode(true);
+      } else {
+        if (mode === "embedding") {
+          svgElement = buildListSvg(globalTree, bgMode, true);
+        } else {
+          svgElement = buildListSvg(globalTree, bgMode, false);
+        }
+      }
+
+      const serializer = new XMLSerializer();
+      const source = serializer.serializeToString(svgElement);
+      const svgBlob = new Blob([source], { type: "image/svg+xml;charset=utf-8" });
+      const url = URL.createObjectURL(svgBlob);
+      const img = new Image();
+      img.onload = function () {
+        const vb = svgElement.viewBox.baseVal;
+        const w = vb && vb.width ? vb.width : svgElement.width.baseVal.value || 1200;
+        const h = vb && vb.height ? vb.height : svgElement.height.baseVal.value || 800;
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+
+        let bgColor = "transparent";
+        if (mode === "embedding") {
+          if (bgMode === "white") bgColor = "#ffffff";
+          else if (bgMode === "black") bgColor = "#000000";
+          else bgColor = "transparent";
+        } else {
+          if (bgMode === "dark") bgColor = "#020617";
+          else if (bgMode === "light") bgColor = "#ffffff";
+          else bgColor = "transparent";
+        }
+
+        if (bgColor !== "transparent") {
+          ctx.fillStyle = bgColor;
+          ctx.fillRect(0, 0, w, h);
+        }
+
+        ctx.drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+        canvas.toBlob(function (blob) {
+          const pngUrl = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = pngUrl;
+          const suffix = currentView === "diagram" ? "diagram" : "list";
+          a.download = `hs_tree_${suffix}.png`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(pngUrl);
+        }, "image/png");
+      };
+      img.src = url;
+    }
+
+    function setupExportButtons() {
+      exportCsvBtn.addEventListener("click", () => {
+        if (globalTree) exportCSV(globalTree);
+      });
+
+      exportSvgBtn.addEventListener("click", () => {
+        if (!globalTree) return;
+        openExportModal("svg");
+      });
+
+      exportPngBtn.addEventListener("click", () => {
+        if (!globalTree) return;
+        openExportModal("png");
+      });
+
+      exportCancelBtn.addEventListener("click", () => {
+        closeExportModal();
+      });
+
+      modeGroup.addEventListener("change", () => {
+        const mode = document.querySelector('input[name="export-mode"]:checked').value;
+        if (mode === "standard") {
+          bgTitleStandard.style.display = "";
+          bgGroupStandard.style.display = "";
+          bgTitleEmbed.style.display = "none";
+          bgGroupEmbed.style.display = "none";
+        } else {
+          bgTitleStandard.style.display = "none";
+          bgGroupStandard.style.display = "none";
+          bgTitleEmbed.style.display = "";
+          bgGroupEmbed.style.display = "";
+        }
+      });
+
+      exportConfirmBtn.addEventListener("click", () => {
+        if (!pendingExportType) return;
+        if (pendingExportType === "svg") {
+          exportSVGWithOptions();
+        } else {
+          exportPNGWithOptions();
+        }
+        closeExportModal();
+      });
+    }
+
+    (async function init() {
+      setupSearch();
+      setupExpandCollapse();
+      setupTabs();
+      setupExportButtons();
+      setupDiagramPanZoom();
+      const rows = await runQuery();
+      if (!rows.length) {
+        setStatus("Nessun risultato o errore nella query.", true);
+        return;
+      }
+      const tree = buildTree(rows);
+      globalTree = tree;
+      renderTreeList(tree);
+      renderDiagram(tree);
+    })();
+  </script>
+</body>
+</html>
